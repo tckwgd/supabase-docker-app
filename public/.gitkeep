@@ -1,0 +1,2 @@
+# This file ensures the public directory exists
+# Even if it's empty, it's needed for the Docker build process
