@@ -45,10 +45,15 @@ COPY --from=builder /app/.next/static ./.next/static
 # Copy the .env.local file to the production image
 COPY --from=builder /app/.env.local ./
 
+# 安装网络诊断工具
+RUN apk add --no-cache curl wget iputils
+
 USER nextjs
 
 EXPOSE 3000
 
 ENV PORT 3000
+# 确保服务器监听所有网络接口
+ENV HOST 0.0.0.0
 
 CMD ["node", "server.js"]
