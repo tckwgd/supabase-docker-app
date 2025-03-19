@@ -69,5 +69,8 @@ BEGIN
 END $$;
 
 -- 重新加载配置
-SELECT pg_reload_conf();
-RAISE NOTICE '已重新加载 PostgreSQL 配置';
+DO $$
+BEGIN
+    PERFORM pg_reload_conf();
+    RAISE NOTICE '已重新加载 PostgreSQL 配置';
+END $$;
