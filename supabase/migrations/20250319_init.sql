@@ -1,9 +1,33 @@
+-- Create profiles table first (since we reference it in the trigger function)
+CREATE TABLE IF NOT EXISTS public.profiles (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  email TEXT NOT NULL,
+  display_name TEXT,
+  avatar_url TEXT,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Set up RLS for the profiles table
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+
+-- Create policy for users to view their own profile
+CREATE POLICY "Users can view their own profile" 
+  ON public.profiles 
+  FOR SELECT 
+  USING (auth.uid() = id);
+
+-- Create policy for users to update their own profile
+CREATE POLICY "Users can update their own profile" 
+  ON public.profiles 
+  FOR UPDATE 
+  USING (auth.uid() = id);
+
 -- Create todos table
 CREATE TABLE IF NOT EXISTS public.todos (
   id SERIAL PRIMARY KEY,
   title TEXT NOT NULL,
   completed BOOLEAN DEFAULT FALSE,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE
 );
 
@@ -47,30 +71,6 @@ BEGIN
   RETURN new;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Create profiles table for additional user data
-CREATE TABLE IF NOT EXISTS public.profiles (
-  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  email TEXT NOT NULL,
-  display_name TEXT,
-  avatar_url TEXT,
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Set up RLS for the profiles table
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-
--- Create policy for users to view their own profile
-CREATE POLICY "Users can view their own profile" 
-  ON public.profiles 
-  FOR SELECT 
-  USING (auth.uid() = id);
-
--- Create policy for users to update their own profile
-CREATE POLICY "Users can update their own profile" 
-  ON public.profiles 
-  FOR UPDATE 
-  USING (auth.uid() = id);
 
 -- Create trigger for new users
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
