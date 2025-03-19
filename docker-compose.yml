@@ -15,14 +15,17 @@ services:
       - SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.ewogICJyb2xlIjogInNlcnZpY2Vfcm9sZSIsCiAgImlzcyI6ICJzdXBhYmFzZSIsCiAgImlhdCI6IDE3NDE1MDAwMDAsCiAgImV4cCI6IDE4OTkyNjY0MDAKfQ.1KoSiJVueKJNkF59uc84BLqk7h8VdAoVp6Gozqr_vGc
       - JWT_SECRET=Xe31/EiRkGVzoX+7JlcD0yU6NdVVLjplrqMK78q29es=
     restart: unless-stopped
-    # 确保应用可以访问外部网络
-    networks:
-      - default
-      - dokploy-network
-
-# 添加外部网络，确保与 Supabase 的连接
-networks:
-  default:
-    driver: bridge
-  dokploy-network:
-    external: true
+    # 确保容器在所有接口上发布端口
+    network_mode: "bridge"
+    # 设置主机名以便于解析
+    hostname: supabase-app
+    # 添加额外主机条目，确保容器可以解析 Supabase 主机名
+    extra_hosts:
+      - "test-supabase-7dba38-34-55-223-67.traefik.me:129.213.192.141"
+    # 添加健康检查
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
