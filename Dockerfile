@@ -36,7 +36,7 @@ RUN adduser --system --uid 1001 nextjs
 
 # Make sure the public directory exists in the final image
 RUN mkdir -p public
-COPY --from=builder /app/public ./public || true
+COPY --from=builder /app/public/. ./public/
 
 # Automatically leverage output traces to reduce image size
 COPY --from=builder /app/.next/standalone ./
