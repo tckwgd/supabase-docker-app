@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 
-// 确保这里的 URL 方案与 Supabase 实例匹配（HTTP 而不是 HTTPS）
+// 默认值 - 使用你的 Supabase 实例的确切值
 const SUPABASE_URL = 'http://test-supabase-7dba38-34-55-223-67.traefik.me'
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.ewogICJyb2xlIjogImFub24iLAogICJpc3MiOiAic3VwYWJhc2UiLAogICJpYXQiOiAxNzQxNTAwMDAwLAogICJleHAiOiAxODk5MjY2NDAwCn0.muKe0Nrvkf5bMyLoFqAuFypRu3jHAcTYU08SYKrgRQo'
 const SUPABASE_SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.ewogICJyb2xlIjogInNlcnZpY2Vfcm9sZSIsCiAgImlzcyI6ICJzdXBhYmFzZSIsCiAgImlhdCI6IDE3NDE1MDAwMDAsCiAgImV4cCI6IDE4OTkyNjY0MDAKfQ.1KoSiJVueKJNkF59uc84BLqk7h8VdAoVp6Gozqr_vGc'
@@ -12,25 +12,19 @@ export const createSupabaseClient = () => {
   
   console.log('创建 Supabase 客户端，URL:', supabaseUrl)
   
-  // 添加重要的配置选项
+  // 创建无 JWT 验证的客户端
   return createClient(supabaseUrl, supabaseKey, {
     auth: {
-      persistSession: typeof window !== 'undefined', // 仅在客户端持久化会话
-      autoRefreshToken: true,
-      detectSessionInUrl: false, // 不从 URL 查询参数检测会话
-      flowType: 'implicit', // 使用隐式流程，适用于 SPA
-      debug: true
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false
+    },
+    db: {
+      schema: 'public'
     },
     global: {
-      fetch: fetch, // 使用标准的 fetch 实现
       headers: {
-        'X-Client-Info': 'supabase-docker-app'
-      }
-    },
-    // 关键：不自动检测 URL 方案，使用我们指定的方案（HTTP）
-    realtime: {
-      params: {
-        eventsPerSecond: 10
+        'X-Client-Info': 'supabase-js/2.x'
       }
     }
   })
@@ -41,7 +35,7 @@ let supabase: ReturnType<typeof createSupabaseClient> | null = null
 
 export const getSupabase = () => {
   if (typeof window === 'undefined') {
-    // 服务端渲染时创建新客户端
+    // 对于服务端渲染，总是创建新客户端
     return createSupabaseClient()
   }
   
@@ -60,9 +54,55 @@ export const createServiceClient = () => {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
-      detectSessionInUrl: false,
-      flowType: 'implicit',
-      debug: true
+      detectSessionInUrl: false
     }
   })
+}
+
+// 创建一个基本的 HTTP 客户端，无需 JWT
+export const createHttpClient = () => {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || SUPABASE_URL
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || SUPABASE_ANON_KEY
+  
+  return {
+    async request(endpoint: string, options: RequestInit = {}) {
+      const url = `${supabaseUrl}${endpoint}`
+      const headers = {
+        'Content-Type': 'application/json',
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+        ...options.headers
+      }
+      
+      try {
+        const response = await fetch(url, {
+          ...options,
+          headers
+        })
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+        
+        return await response.json()
+      } catch (error) {
+        console.error('HTTP request failed:', error)
+        throw error
+      }
+    },
+    
+    async createUser(email: string, password: string) {
+      return this.request('/auth/v1/signup', {
+        method: 'POST',
+        body: JSON.stringify({ email, password })
+      })
+    },
+    
+    async login(email: string, password: string) {
+      return this.request('/auth/v1/token?grant_type=password', {
+        method: 'POST',
+        body: JSON.stringify({ email, password })
+      })
+    }
+  }
 }
