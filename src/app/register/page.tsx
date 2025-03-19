@@ -35,19 +35,34 @@ export default function Register() {
     }
 
     try {
-      const { error } = await supabase.auth.signUp({
+      // Modified to use emailRedirectTo: false to disable email confirmation
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          emailRedirectTo: false,
+          data: {
+            email: email
+          }
+        }
       })
 
       if (error) throw error
       
+      // Modified to do direct login after registration
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      })
+      
+      if (signInError) throw signInError
+      
       setSuccess(true)
       
-      // Redirect to login page after 2 seconds
+      // Redirect to dashboard directly
       setTimeout(() => {
-        router.push('/login')
-      }, 2000)
+        router.push('/dashboard')
+      }, 1000)
       
     } catch (error: any) {
       setError(error.message || 'An error occurred during registration')
@@ -69,7 +84,7 @@ export default function Register() {
         
         {success && (
           <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
-            Registration successful! Redirecting to login page...
+            Registration successful! Redirecting to dashboard...
           </div>
         )}
         
