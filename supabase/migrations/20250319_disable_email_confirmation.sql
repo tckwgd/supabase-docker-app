@@ -4,11 +4,32 @@
 DO $$
 BEGIN
     IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'auth' AND tablename = 'config') THEN
-        UPDATE auth.config 
-        SET enable_email_autoconfirm = true,
-            enable_sign_in_with_email_needs_verification = false 
-        WHERE id = 1;
-        RAISE NOTICE 'Updated auth.config table';
+        -- 检查列是否存在并且不是生成列
+        IF EXISTS (
+            SELECT FROM information_schema.columns 
+            WHERE table_schema = 'auth' 
+            AND table_name = 'config' 
+            AND column_name = 'enable_email_autoconfirm'
+            AND is_generated = 'NEVER'
+        ) THEN
+            UPDATE auth.config 
+            SET enable_email_autoconfirm = true
+            WHERE id = 1;
+            RAISE NOTICE 'Updated enable_email_autoconfirm in auth.config table';
+        END IF;
+
+        IF EXISTS (
+            SELECT FROM information_schema.columns 
+            WHERE table_schema = 'auth' 
+            AND table_name = 'config' 
+            AND column_name = 'enable_sign_in_with_email_needs_verification'
+            AND is_generated = 'NEVER'
+        ) THEN
+            UPDATE auth.config 
+            SET enable_sign_in_with_email_needs_verification = false 
+            WHERE id = 1;
+            RAISE NOTICE 'Updated enable_sign_in_with_email_needs_verification in auth.config table';
+        END IF;
     END IF;
 END $$;
 
@@ -16,100 +37,127 @@ END $$;
 DO $$
 BEGIN
     IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'auth' AND tablename = 'settings') THEN
-        UPDATE auth.settings 
-        SET require_email_confirmation = false
-        WHERE id = 1;
-        RAISE NOTICE 'Updated auth.settings table';
-    END IF;
-END $$;
-
--- 方法 3: 尝试更新 supabase_auth.config
-DO $$
-BEGIN
-    IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'supabase_auth' AND tablename = 'config') THEN
-        UPDATE supabase_auth.config 
-        SET enable_email_autoconfirm = true,
-            email_confirm_required = false
-        WHERE id = 1;
-        RAISE NOTICE 'Updated supabase_auth.config table';
-    END IF;
-END $$;
-
--- 方法 4: 尝试直接使用函数来确认特定用户的电子邮件
--- 创建一个自定义函数来尝试确认所有未确认的电子邮件
-CREATE OR REPLACE FUNCTION confirm_all_users()
-RETURNS void AS $$
-DECLARE
-    _schema text;
-    _table text;
-    _query text;
-BEGIN
-    -- 检查各种可能的表名和模式
-    FOR _schema, _table IN
-        SELECT 'auth', 'users'
-        UNION SELECT 'supabase_auth', 'users'
-        UNION SELECT 'auth', 'accounts'
-        UNION SELECT 'supabase_auth', 'accounts'
-    LOOP
         IF EXISTS (
-            SELECT FROM information_schema.tables 
-            WHERE table_schema = _schema 
-            AND table_name = _table
+            SELECT FROM information_schema.columns 
+            WHERE table_schema = 'auth' 
+            AND table_name = 'settings' 
+            AND column_name = 'require_email_confirmation'
+            AND is_generated = 'NEVER'
         ) THEN
-            -- 检查表中是否有 email_confirmed_at 字段
-            IF EXISTS (
-                SELECT FROM information_schema.columns 
-                WHERE table_schema = _schema 
-                AND table_name = _table 
-                AND column_name = 'email_confirmed_at'
-            ) THEN
-                _query := format('
-                    UPDATE %I.%I 
-                    SET email_confirmed_at = CURRENT_TIMESTAMP 
-                    WHERE email_confirmed_at IS NULL
-                ', _schema, _table);
-                
-                EXECUTE _query;
-                RAISE NOTICE 'Updated % users in %.%', FOUND, _schema, _table;
-            END IF;
+            UPDATE auth.settings 
+            SET require_email_confirmation = false
+            WHERE id = 1;
+            RAISE NOTICE 'Updated auth.settings table';
+        END IF;
+    END IF;
+END $$;
+
+-- 方法 3: 尝试修改 auth.users 表中有关确认的列
+DO $$
+DECLARE
+    _query text;
+    _column_count int;
+BEGIN
+    -- 只检查 email_confirmed_at 列，避免 confirmed_at 生成列
+    IF EXISTS (
+        SELECT FROM information_schema.columns 
+        WHERE table_schema = 'auth' 
+        AND table_name = 'users' 
+        AND column_name = 'email_confirmed_at'
+        AND is_generated = 'NEVER'
+    ) THEN
+        -- 首先检查是否有未确认的用户
+        SELECT COUNT(*) INTO _column_count
+        FROM auth.users
+        WHERE email_confirmed_at IS NULL;
+
+        RAISE NOTICE 'Found % users with null email_confirmed_at', _column_count;
+
+        IF _column_count > 0 THEN
+            UPDATE auth.users 
+            SET email_confirmed_at = CURRENT_TIMESTAMP 
+            WHERE email_confirmed_at IS NULL;
+            RAISE NOTICE 'Updated % users in auth.users (email_confirmed_at)', _column_count;
+        END IF;
+    END IF;
+    
+    -- 检查并更新 is_confirmed 布尔字段
+    IF EXISTS (
+        SELECT FROM information_schema.columns 
+        WHERE table_schema = 'auth' 
+        AND table_name = 'users' 
+        AND column_name = 'is_confirmed'
+        AND is_generated = 'NEVER'
+    ) THEN
+        SELECT COUNT(*) INTO _column_count
+        FROM auth.users
+        WHERE is_confirmed = false OR is_confirmed IS NULL;
+
+        RAISE NOTICE 'Found % users with is_confirmed=false or null', _column_count;
+
+        IF _column_count > 0 THEN
+            UPDATE auth.users 
+            SET is_confirmed = true 
+            WHERE is_confirmed = false OR is_confirmed IS NULL;
+            RAISE NOTICE 'Updated % users in auth.users (is_confirmed)', _column_count;
+        END IF;
+    END IF;
+END $$;
+
+-- 方法 4: 尝试在 auth.identities 表中更新邮箱验证状态 
+DO $$
+DECLARE
+    _identity_count int;
+BEGIN
+    IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'auth' AND tablename = 'identities') THEN
+        IF EXISTS (
+            SELECT FROM information_schema.columns 
+            WHERE table_schema = 'auth' 
+            AND table_name = 'identities' 
+            AND column_name = 'email_verified'
+        ) THEN
+            SELECT COUNT(*) INTO _identity_count
+            FROM auth.identities
+            WHERE provider_id = 'email'
+            AND (email_verified = false OR email_verified IS NULL);
             
-            -- 检查表中是否有 confirmed_at 字段
-            IF EXISTS (
-                SELECT FROM information_schema.columns 
-                WHERE table_schema = _schema 
-                AND table_name = _table 
-                AND column_name = 'confirmed_at'
-            ) THEN
-                _query := format('
-                    UPDATE %I.%I 
-                    SET confirmed_at = CURRENT_TIMESTAMP 
-                    WHERE confirmed_at IS NULL
-                ', _schema, _table);
-                
-                EXECUTE _query;
-                RAISE NOTICE 'Updated % users in %.%', FOUND, _schema, _table;
-            END IF;
+            RAISE NOTICE 'Found % email identities with email_verified=false or null', _identity_count;
             
-            -- 检查表中是否有 email_confirmed 布尔字段
-            IF EXISTS (
-                SELECT FROM information_schema.columns 
-                WHERE table_schema = _schema 
-                AND table_name = _table 
-                AND column_name = 'email_confirmed'
-            ) THEN
-                _query := format('
-                    UPDATE %I.%I 
-                    SET email_confirmed = true 
-                    WHERE email_confirmed = false OR email_confirmed IS NULL
-                ', _schema, _table);
-                
-                EXECUTE _query;
-                RAISE NOTICE 'Updated % users in %.%', FOUND, _schema, _table;
+            IF _identity_count > 0 THEN
+                UPDATE auth.identities
+                SET email_verified = true
+                WHERE provider_id = 'email'
+                AND (email_verified = false OR email_verified IS NULL);
+                RAISE NOTICE 'Updated % identities in auth.identities', _identity_count;
             END IF;
         END IF;
-    END LOOP;
-END;
-$$ LANGUAGE plpgsql;
+    END IF;
+END $$;
 
--- 执行函数确认所有用户
-SELECT confirm_all_users();
+-- 方法 5: 查找并检查 auth.instances 表的设置
+DO $$
+BEGIN
+    IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'auth' AND tablename = 'instances') THEN
+        IF EXISTS (
+            SELECT FROM information_schema.columns 
+            WHERE table_schema = 'auth' 
+            AND table_name = 'instances' 
+            AND column_name = 'email_confirm_required'
+        ) THEN
+            UPDATE auth.instances
+            SET email_confirm_required = false;
+            RAISE NOTICE 'Updated auth.instances (email_confirm_required)';
+        END IF;
+        
+        IF EXISTS (
+            SELECT FROM information_schema.columns 
+            WHERE table_schema = 'auth' 
+            AND table_name = 'instances' 
+            AND column_name = 'enable_email_autoconfirm'
+        ) THEN
+            UPDATE auth.instances
+            SET enable_email_autoconfirm = true;
+            RAISE NOTICE 'Updated auth.instances (enable_email_autoconfirm)';
+        END IF;
+    END IF;
+END $$;
