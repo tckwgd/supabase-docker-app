@@ -13,19 +13,16 @@ services:
       - NEXT_PUBLIC_SUPABASE_URL=http://test-supabase-7dba38-34-55-223-67.traefik.me
       - NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.ewogICJyb2xlIjogImFub24iLAogICJpc3MiOiAic3VwYWJhc2UiLAogICJpYXQiOiAxNzQxNTAwMDAwLAogICJleHAiOiAxODk5MjY2NDAwCn0.muKe0Nrvkf5bMyLoFqAuFypRu3jHAcTYU08SYKrgRQo
       - SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.ewogICJyb2xlIjogInNlcnZpY2Vfcm9sZSIsCiAgImlzcyI6ICJzdXBhYmFzZSIsCiAgImlhdCI6IDE3NDE1MDAwMDAsCiAgImV4cCI6IDE4OTkyNjY0MDAKfQ.1KoSiJVueKJNkF59uc84BLqk7h8VdAoVp6Gozqr_vGc
-    # 添加网络配置，确保容器可以访问外部服务
-    networks:
-      - app_network
+      - JWT_SECRET=Xe31/EiRkGVzoX+7JlcD0yU6NdVVLjplrqMK78q29es=
     restart: unless-stopped
-    # 增加健康检查
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
+    # 确保应用可以访问外部网络
+    networks:
+      - default
+      - dokploy-network
 
-# 声明网络
+# 添加外部网络，确保与 Supabase 的连接
 networks:
-  app_network:
+  default:
     driver: bridge
+  dokploy-network:
+    external: true
