@@ -13,28 +13,41 @@ export default function NavBar() {
 
   useEffect(() => {
     async function getUser() {
-      const { data: { user } } = await supabase.auth.getUser()
-      setUser(user)
-      setLoading(false)
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        setUser(user)
+      } catch (error) {
+        console.error('Error fetching user:', error)
+      } finally {
+        setLoading(false)
+      }
     }
     
     getUser()
     
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setUser(session?.user ?? null)
+    try {
+      const { data: authListener } = supabase.auth.onAuthStateChange(
+        (event, session) => {
+          setUser(session?.user ?? null)
+        }
+      )
+      
+      return () => {
+        authListener?.subscription?.unsubscribe?.()
       }
-    )
-    
-    return () => {
-      authListener.subscription.unsubscribe()
+    } catch (error) {
+      console.error('Error setting up auth listener:', error)
     }
-  }, [supabase])
+  }, [])
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut()
-    router.push('/')
-    router.refresh()
+    try {
+      await supabase.auth.signOut()
+      router.push('/')
+      router.refresh()
+    } catch (error) {
+      console.error('Error signing out:', error)
+    }
   }
 
   return (
