@@ -49,21 +49,46 @@ export default function Login() {
     }
   }
   
-  const handleAnonymousLogin = async () => {
-    setLoading(true)
-    setError(null)
-
+  // 尝试使用测试账号登录
+  const handleTestUserLogin = async () => {
+    setLoading(true);
+    setError(null);
+    
     try {
-      const { data, error } = await supabase.auth.signInAnonymously();
+      const { error } = await supabase.auth.signInWithPassword({
+        email: 'test@example.com',
+        password: 'password123',
+      });
       
-      if (error) throw error;
+      if (error) {
+        // 如果默认用户不存在，创建一个
+        const { error: signUpError } = await supabase.auth.signUp({
+          email: 'test@example.com',
+          password: 'password123',
+          options: {
+            data: {
+              username: '测试用户'
+            }
+          }
+        });
+        
+        if (signUpError) throw signUpError;
+        
+        // 尝试再次登录
+        const { error: retryError } = await supabase.auth.signInWithPassword({
+          email: 'test@example.com',
+          password: 'password123',
+        });
+        
+        if (retryError) throw retryError;
+      }
       
       // 登录成功后重定向到仪表板
       router.push('/dashboard')
       router.refresh()
     } catch (error: any) {
-      console.error('匿名登录错误:', error);
-      setError(error.message || '匿名登录过程中发生错误');
+      console.error('测试用户登录错误:', error);
+      setError('无法使用测试账号登录: ' + error.message);
     } finally {
       setLoading(false)
     }
@@ -123,11 +148,11 @@ export default function Login() {
         <div className="mt-6 text-center">
           <p className="text-sm text-gray-700">或者</p>
           <button 
-            onClick={handleAnonymousLogin}
+            onClick={handleTestUserLogin}
             className="btn btn-secondary w-full mt-2"
             disabled={loading}
           >
-            使用匿名账号快速登录
+            使用测试账号登录
           </button>
         </div>
         
