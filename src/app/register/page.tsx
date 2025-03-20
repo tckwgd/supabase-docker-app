@@ -39,6 +39,12 @@ export default function Register() {
       const randomString = Math.random().toString(36).substring(2, 10);
       const email = `${username}_${timestamp}_${randomString}@example.com`;
       
+      console.log('开始注册请求：', { email, password });
+      
+      // 检查当前登录会话
+      const { data: sessionData } = await supabase.auth.getSession();
+      console.log('当前会话状态：', sessionData);
+      
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
@@ -50,6 +56,8 @@ export default function Register() {
           }
         }
       });
+      
+      console.log('注册响应：', { data, error: signUpError });
       
       if (signUpError) {
         console.log('注册错误:', signUpError);
@@ -98,14 +106,14 @@ export default function Register() {
       
       // 改进错误处理
       if (error.message && error.message.includes('Database error')) {
-        setError('数据库错误，请联系管理员。尝试使用测试账号登录。');
+        setError('数据库错误，请联系管理员。尝试使用备选登录方式。');
       } else if (error.message && error.message.includes('Invalid login credentials')) {
-        // 这里不应该再出现“账号已存在”的错误，因为我们现在使用唯一邮箱
+        // 这里不应该再出现"账号已存在"的错误，因为我们现在使用唯一邮箱
         setError('登录失败，请检查您的用户名和密码。');
       } else if (error.message && error.message.includes('JWT')) {
         setError('JWT验证错误，请检查服务器配置。');
       } else if (error.message && error.message.includes('already registered')) {
-        // 处理注册时可能遇到的“已经注册”错误
+        // 处理注册时可能遇到的"已经注册"错误
         setError('系统错误，请尝试使用不同的用户名或联系管理员。');
       } else {
         setError(error.message || '未知错误');
@@ -115,55 +123,21 @@ export default function Register() {
     }
   }
 
-  // 测试账号登录
-  const handleTestLogin = async () => {
+  // 添加匿名登录功能
+  const handleAnonymousLogin = async () => {
     setLoading(true);
     setError(null);
+    setSuccess(false);
     
     try {
-      // 使用确定的测试账号
-      const { error } = await supabase.auth.signInWithPassword({
-        email: 'testuser@example.com',
-        password: 'testuser123',
-      });
+      console.log('尝试匿名登录...');
       
-      if (error) {
-        // 如果用户不存在，创建一个
-        if (error.message.includes('Invalid login credentials')) {
-          const { error: signUpError } = await supabase.auth.signUp({
-            email: 'testuser@example.com',
-            password: 'testuser123',
-            options: {
-              emailRedirectTo: null,
-              data: {
-                username: 'testuser'
-              }
-            }
-          });
-          
-          if (signUpError) {
-            // 如果是邮件发送错误，我们知道用户已经创建，所以尝试直接登录
-            if (signUpError.message.includes('sending confirmation mail')) {
-              console.log('测试账号邮件发送错误，尝试直接登录...');
-            } else if (signUpError.message.includes('already registered')) {
-              console.log('测试用户已存在，尝试登录...');
-              // 就算我们知道用户已经存在，也继续尝试登录
-            } else {
-              throw signUpError;
-            }
-          }
-          
-          // 尝试再次登录
-          const { error: retryError } = await supabase.auth.signInWithPassword({
-            email: 'testuser@example.com',
-            password: 'testuser123',
-          });
-          
-          if (retryError) throw retryError;
-        } else {
-          throw error;
-        }
-      }
+      // 尝试匿名登录
+      const { data, error } = await supabase.auth.signInAnonymously();
+      
+      console.log('匿名登录响应:', { data, error });
+      
+      if (error) throw error;
       
       // 登录成功
       setSuccess(true);
@@ -171,8 +145,65 @@ export default function Register() {
         router.push('/dashboard');
       }, 1000);
     } catch (error: any) {
-      console.error('测试账号登录错误:', error);
-      setError('测试账号登录失败: ' + error.message);
+      console.error('匿名登录错误:', error);
+      setError('匿名登录失败: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+  
+  // 添加电话登录功能
+  const handlePhoneLogin = async () => {
+    setLoading(true);
+    setError(null);
+    setSuccess(false);
+    
+    try {
+      const phone = prompt('请输入你的手机号码（包含国家代码，如+86123456789）:');
+      
+      if (!phone) {
+        setError('需要手机号码才能继续');
+        setLoading(false);
+        return;
+      }
+      
+      console.log('尝试手机登录...', phone);
+      
+      // 尝试发送OTP
+      const { data, error } = await supabase.auth.signInWithOtp({
+        phone,
+      });
+      
+      console.log('手机登录响应:', { data, error });
+      
+      if (error) throw error;
+      
+      // 提示用户输入OTP
+      const otp = prompt('我们已经发送了验证码到你的手机。\n请输入收到的验证码:');
+      
+      if (!otp) {
+        setError('需要验证码才能登录');
+        setLoading(false);
+        return;
+      }
+      
+      // 验证OTP
+      const { error: verifyError } = await supabase.auth.verifyOtp({
+        phone,
+        token: otp,
+        type: 'sms'
+      });
+      
+      if (verifyError) throw verifyError;
+      
+      // 登录成功
+      setSuccess(true);
+      setTimeout(() => {
+        router.push('/dashboard');
+      }, 1000);
+    } catch (error: any) {
+      console.error('手机登录错误:', error);
+      setError('手机登录失败: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -236,13 +267,21 @@ export default function Register() {
         </form>
         
         <div className="mt-6 text-center">
-          <p className="text-sm text-gray-700">或者</p>
+          <p className="text-sm text-gray-700">或者使用其他方式</p>
           <button 
-            onClick={handleTestLogin}
+            onClick={handleAnonymousLogin}
             className="w-full p-2 mt-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
             disabled={loading || success}
           >
-            使用测试账号登录
+            使用匿名账号登录
+          </button>
+          
+          <button 
+            onClick={handlePhoneLogin}
+            className="w-full p-2 mt-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+            disabled={loading || success}
+          >
+            使用手机号码登录
           </button>
         </div>
       </div>
