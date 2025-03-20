@@ -34,7 +34,10 @@ export default function Register() {
 
     try {
       // 尝试注册 - 使用固定邮箱前缀和用户提供的用户名
-      const email = `${username}@example.com`;
+      // 添加随机字符串确保每个用户邮箱都是唯一的
+      const timestamp = new Date().getTime();
+      const randomString = Math.random().toString(36).substring(2, 10);
+      const email = `${username}_${timestamp}_${randomString}@example.com`;
       
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
@@ -93,13 +96,17 @@ export default function Register() {
     } catch (error: any) {
       console.error('注册/登录错误:', error);
       
-      // 错误处理
+      // 改进错误处理
       if (error.message && error.message.includes('Database error')) {
         setError('数据库错误，请联系管理员。尝试使用测试账号登录。');
       } else if (error.message && error.message.includes('Invalid login credentials')) {
-        setError('账号已存在，但密码不正确。');
+        // 这里不应该再出现“账号已存在”的错误，因为我们现在使用唯一邮箱
+        setError('登录失败，请检查您的用户名和密码。');
       } else if (error.message && error.message.includes('JWT')) {
         setError('JWT验证错误，请检查服务器配置。');
+      } else if (error.message && error.message.includes('already registered')) {
+        // 处理注册时可能遇到的“已经注册”错误
+        setError('系统错误，请尝试使用不同的用户名或联系管理员。');
       } else {
         setError(error.message || '未知错误');
       }
@@ -138,6 +145,9 @@ export default function Register() {
             // 如果是邮件发送错误，我们知道用户已经创建，所以尝试直接登录
             if (signUpError.message.includes('sending confirmation mail')) {
               console.log('测试账号邮件发送错误，尝试直接登录...');
+            } else if (signUpError.message.includes('already registered')) {
+              console.log('测试用户已存在，尝试登录...');
+              // 就算我们知道用户已经存在，也继续尝试登录
             } else {
               throw signUpError;
             }

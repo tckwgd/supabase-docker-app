@@ -45,11 +45,13 @@ export default function Login() {
         // 由于禁用了邮件确认，这种情况应该不会出现，但仍保留处理
         setError('邮箱未验证。请联系管理员启用您的账号。');
       } else if (error.message && error.message.includes('Invalid login credentials')) {
-        setError('邮箱或密码不正确');
+        setError('用户名或密码不正确。请检查信息或尝试注册。');
       } else if (error.message && error.message.includes('JWT')) {
         setError('JWT 验证错误，服务器配置问题。');
       } else if (error.message && error.message.includes('Database error')) {
         setError('数据库错误，请尝试测试账号登录。');
+      } else if (error.message && error.message.includes('already registered')) {
+        setError('系统错误，请尝试使用不同的用户名或联系管理员。');
       } else {
         setError(`登录错误: ${error.message || '未知错误'}`);
       }
@@ -89,6 +91,9 @@ export default function Login() {
             // 如果是邮件发送错误，我们知道用户已经创建，所以尝试直接登录
             if (signUpError.message.includes('sending confirmation mail')) {
               console.log('测试账号邮件发送错误，尝试直接登录...');
+            } else if (signUpError.message.includes('already registered')) {
+              console.log('测试用户已存在，尝试登录...');
+              // 就算我们知道用户已经存在，也继续尝试登录
             } else {
               throw signUpError;
             }
