@@ -35,62 +35,23 @@ export default function Register() {
     }
 
     try {
-      // 使用服务端角色直接创建用户 - 绕过邮件确认
-      // 注意: 在生产环境中这可能不是最佳实践，但对于开发/测试环境是可行的
-      const serviceClient = supabase.auth.admin;
-      
-      if (!serviceClient) {
-        // 如果服务端客户端不可用，则尝试正常注册，然后立即登录
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: null,
-            data: {
-              email: email
-            }
+      // 使用标准 Auth API 进行注册
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/dashboard`,
+          data: {
+            email: email
           }
-        });
-        
-        if (error) throw error;
-        
-        // 直接尝试登录 - 即使没有邮件确认
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email,
-          password
-        });
-        
-        if (signInError) throw signInError;
-      } else {
-        // 使用管理API直接创建已确认的用户
-        const { error } = await serviceClient.createUser({
-          email,
-          password,
-          email_confirm: true
-        });
-        
-        if (error) throw error;
-        
-        // 登录新创建的用户
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email,
-          password
-        });
-        
-        if (signInError) throw signInError;
-      }
+        }
+      });
       
-      setSuccess(true);
+      if (error) throw error;
       
-      // 注册成功后直接重定向到仪表板
-      setTimeout(() => {
-        router.push('/dashboard');
-      }, 1000);
+      console.log('注册成功:', data);
       
-    } catch (error: any) {
-      console.error('注册错误:', error);
-      
-      // 即使有错误，也尝试直接登录
+      // 尝试自动登录 - 对于自动确认设置可能有效
       try {
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email,
@@ -98,7 +59,6 @@ export default function Register() {
         });
         
         if (!signInError) {
-          // 如果能成功登录，可能是用户已经存在，只是无法发送确认邮件
           setSuccess(true);
           setTimeout(() => {
             router.push('/dashboard');
@@ -107,14 +67,21 @@ export default function Register() {
         }
       } catch (loginError) {
         // 忽略登录尝试中的错误
+        console.log('自动登录尝试失败，这是正常的');
       }
       
-      // 自定义错误消息，忽略邮件发送错误
-      if (error.message && error.message.includes('confirmation mail')) {
-        setSuccess(true);
-        setTimeout(() => {
-          router.push('/dashboard');
-        }, 1000);
+      // 如果我们到达这里，用户创建成功但需要确认
+      setSuccess(true);
+      setError('请检查您的邮箱进行账户验证');
+      
+    } catch (error: any) {
+      console.error('注册错误:', error);
+      
+      // 处理各种错误情况
+      if (error.message && error.message.includes('User already registered')) {
+        setError('该邮箱已注册，请直接登录或找回密码');
+      } else if (error.message && error.message.includes('JWT')) {
+        setError('授权错误，请稍后再试');
       } else {
         setError(error.message || '注册过程中发生错误');
       }
@@ -136,7 +103,7 @@ export default function Register() {
         
         {success && (
           <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
-            注册成功！正在重定向到仪表板...
+            注册成功！{error ? '' : '正在重定向到仪表板...'}
           </div>
         )}
         
