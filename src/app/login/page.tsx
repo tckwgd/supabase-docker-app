@@ -25,36 +25,6 @@ export default function Login() {
       })
 
       if (error) {
-        // 如果错误是因为邮箱未验证，尝试使用管理API验证邮箱
-        if (error.message && error.message.includes('Email not confirmed')) {
-          try {
-            // 尝试确认用户邮箱
-            const serviceClient = supabase.auth.admin;
-            
-            if (serviceClient) {
-              await serviceClient.updateUserById(
-                'unknown', // 我们不知道用户ID，这里可能会失败
-                { email_confirm: true }
-              );
-            }
-            
-            // 再次尝试登录
-            const { error: retryError } = await supabase.auth.signInWithPassword({
-              email,
-              password,
-            });
-            
-            if (retryError) throw retryError;
-            
-            // 如果成功，重定向到仪表板
-            router.push('/dashboard');
-            return;
-          } catch (confirmError) {
-            console.error('无法自动确认邮箱:', confirmError);
-            // 继续处理原始错误
-          }
-        }
-        
         throw error;
       }
       
@@ -62,11 +32,15 @@ export default function Login() {
       router.push('/dashboard')
       router.refresh()
     } catch (error: any) {
+      console.error('登录错误:', error);
+      
       // 自定义错误消息
       if (error.message && error.message.includes('Email not confirmed')) {
-        setError('邮箱未验证。由于技术限制，请使用其他邮箱注册。');
+        setError('邮箱未验证。请检查您的邮箱并点击验证链接。');
       } else if (error.message && error.message.includes('Invalid login credentials')) {
         setError('邮箱或密码不正确');
+      } else if (error.message && error.message.includes('JWT')) {
+        setError('授权错误，请刷新页面后重试');
       } else {
         setError(error.message || '登录过程中发生错误');
       }
