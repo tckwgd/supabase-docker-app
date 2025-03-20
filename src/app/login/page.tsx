@@ -10,6 +10,7 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState(false)
   const router = useRouter()
   const supabase = getSupabase()
 
@@ -17,8 +18,10 @@ export default function Login() {
     e.preventDefault()
     setLoading(true)
     setError(null)
+    setSuccess(false)
 
     try {
+      // 尝试登录
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -28,80 +31,100 @@ export default function Login() {
         throw error;
       }
       
-      // 登录成功后重定向到仪表板
-      router.push('/dashboard')
-      router.refresh()
+      // 登录成功
+      setSuccess(true);
+      setTimeout(() => {
+        router.push('/dashboard');
+        router.refresh();
+      }, 1000);
     } catch (error: any) {
       console.error('登录错误:', error);
       
-      // 自定义错误消息
+      // 错误处理
       if (error.message && error.message.includes('Email not confirmed')) {
-        setError('邮箱未验证。请检查您的邮箱并点击验证链接。');
+        setError('邮箱未验证。');
       } else if (error.message && error.message.includes('Invalid login credentials')) {
         setError('邮箱或密码不正确');
       } else if (error.message && error.message.includes('JWT')) {
-        setError('授权错误，请刷新页面后重试');
+        setError('JWT 验证错误，服务器配置问题。');
+      } else if (error.message && error.message.includes('Database error')) {
+        setError('数据库错误，请尝试测试账号登录。');
       } else {
-        setError(error.message || '登录过程中发生错误');
+        setError(`登录错误: ${error.message || '未知错误'}`);
       }
     } finally {
       setLoading(false)
     }
   }
   
-  // 尝试使用测试账号登录
-  const handleTestUserLogin = async () => {
+  // 测试账号登录
+  const handleTestLogin = async () => {
     setLoading(true);
     setError(null);
+    setSuccess(false);
     
     try {
+      // 使用确定的测试账号
       const { error } = await supabase.auth.signInWithPassword({
-        email: 'test@example.com',
-        password: 'password123',
+        email: 'testuser@example.com',
+        password: 'testuser123',
       });
       
       if (error) {
-        // 如果默认用户不存在，创建一个
-        const { error: signUpError } = await supabase.auth.signUp({
-          email: 'test@example.com',
-          password: 'password123',
-          options: {
-            data: {
-              username: '测试用户'
+        // 如果用户不存在，创建一个
+        if (error.message.includes('Invalid login credentials')) {
+          const { error: signUpError } = await supabase.auth.signUp({
+            email: 'testuser@example.com',
+            password: 'testuser123',
+            options: {
+              data: {
+                username: 'testuser'
+              }
             }
-          }
-        });
-        
-        if (signUpError) throw signUpError;
-        
-        // 尝试再次登录
-        const { error: retryError } = await supabase.auth.signInWithPassword({
-          email: 'test@example.com',
-          password: 'password123',
-        });
-        
-        if (retryError) throw retryError;
+          });
+          
+          if (signUpError) throw signUpError;
+          
+          // 尝试再次登录
+          const { error: retryError } = await supabase.auth.signInWithPassword({
+            email: 'testuser@example.com',
+            password: 'testuser123',
+          });
+          
+          if (retryError) throw retryError;
+        } else {
+          throw error;
+        }
       }
       
-      // 登录成功后重定向到仪表板
-      router.push('/dashboard')
-      router.refresh()
+      // 登录成功
+      setSuccess(true);
+      setTimeout(() => {
+        router.push('/dashboard');
+        router.refresh();
+      }, 1000);
     } catch (error: any) {
-      console.error('测试用户登录错误:', error);
-      setError('无法使用测试账号登录: ' + error.message);
+      console.error('测试账号登录错误:', error);
+      setError(`测试账号登录失败: ${error.message}`);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center p-6">
-      <div className="card w-full max-w-md">
+      <div className="card w-full max-w-md p-6 bg-white rounded shadow-md">
         <h1 className="text-2xl font-bold mb-6 text-center">登录</h1>
         
         {error && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
             {error}
+          </div>
+        )}
+        
+        {success && (
+          <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+            登录成功！正在重定向...
           </div>
         )}
         
@@ -116,7 +139,7 @@ export default function Login() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="input w-full"
+              className="w-full p-2 border rounded"
               placeholder="请输入您的邮箱"
             />
           </div>
@@ -131,15 +154,15 @@ export default function Login() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="input w-full"
+              className="w-full p-2 border rounded"
               placeholder="请输入您的密码"
             />
           </div>
           
           <button
             type="submit"
-            className="btn btn-primary w-full"
-            disabled={loading}
+            className="w-full p-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            disabled={loading || success}
           >
             {loading ? '登录中...' : '登录'}
           </button>
@@ -148,9 +171,9 @@ export default function Login() {
         <div className="mt-6 text-center">
           <p className="text-sm text-gray-700">或者</p>
           <button 
-            onClick={handleTestUserLogin}
-            className="btn btn-secondary w-full mt-2"
-            disabled={loading}
+            onClick={handleTestLogin}
+            className="w-full p-2 mt-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+            disabled={loading || success}
           >
             使用测试账号登录
           </button>
@@ -159,7 +182,7 @@ export default function Login() {
         <div className="mt-4 text-center">
           <p className="text-sm text-gray-600">
             没有账号？{' '}
-            <Link href="/register" className="text-emerald-600 hover:underline">
+            <Link href="/register" className="text-blue-500 hover:underline">
               点此注册
             </Link>
           </p>
