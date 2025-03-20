@@ -42,7 +42,8 @@ export default function Login() {
       
       // 错误处理
       if (error.message && error.message.includes('Email not confirmed')) {
-        setError('邮箱未验证。');
+        // 由于禁用了邮件确认，这种情况应该不会出现，但仍保留处理
+        setError('邮箱未验证。请联系管理员启用您的账号。');
       } else if (error.message && error.message.includes('Invalid login credentials')) {
         setError('邮箱或密码不正确');
       } else if (error.message && error.message.includes('JWT')) {
@@ -77,13 +78,21 @@ export default function Login() {
             email: 'testuser@example.com',
             password: 'testuser123',
             options: {
+              emailRedirectTo: null,
               data: {
                 username: 'testuser'
               }
             }
           });
           
-          if (signUpError) throw signUpError;
+          if (signUpError) {
+            // 如果是邮件发送错误，我们知道用户已经创建，所以尝试直接登录
+            if (signUpError.message.includes('sending confirmation mail')) {
+              console.log('测试账号邮件发送错误，尝试直接登录...');
+            } else {
+              throw signUpError;
+            }
+          }
           
           // 尝试再次登录
           const { error: retryError } = await supabase.auth.signInWithPassword({

@@ -40,6 +40,8 @@ export default function Register() {
         email,
         password,
         options: {
+          // 禁用邮件确认，不需要emailRedirectTo
+          emailRedirectTo: null,
           data: {
             username
           }
@@ -47,8 +49,11 @@ export default function Register() {
       });
       
       if (signUpError) {
+        console.log('注册错误:', signUpError);
+        
         // 如果用户已存在，尝试直接登录
-        if (signUpError.message.includes('already registered')) {
+        if (signUpError.message.includes('already registered') || 
+            signUpError.message.includes('User already registered')) {
           console.log('用户已存在，尝试登录...');
           
           const { error: signInError } = await supabase.auth.signInWithPassword({
@@ -56,7 +61,23 @@ export default function Register() {
             password
           });
           
-          if (signInError) throw signInError;
+          if (signInError) {
+            console.log('登录错误:', signInError);
+            throw signInError;
+          }
+        } else if (signUpError.message.includes('sending confirmation mail')) {
+          // 邮件发送错误时，我们知道用户已经创建，所以尝试直接登录
+          console.log('邮件发送错误，尝试直接登录...');
+          
+          const { error: signInError } = await supabase.auth.signInWithPassword({
+            email,
+            password
+          });
+          
+          if (signInError) {
+            console.log('登录错误:', signInError);
+            throw signInError;
+          }
         } else {
           throw signUpError;
         }
@@ -106,13 +127,21 @@ export default function Register() {
             email: 'testuser@example.com',
             password: 'testuser123',
             options: {
+              emailRedirectTo: null,
               data: {
                 username: 'testuser'
               }
             }
           });
           
-          if (signUpError) throw signUpError;
+          if (signUpError) {
+            // 如果是邮件发送错误，我们知道用户已经创建，所以尝试直接登录
+            if (signUpError.message.includes('sending confirmation mail')) {
+              console.log('测试账号邮件发送错误，尝试直接登录...');
+            } else {
+              throw signUpError;
+            }
+          }
           
           // 尝试再次登录
           const { error: retryError } = await supabase.auth.signInWithPassword({
