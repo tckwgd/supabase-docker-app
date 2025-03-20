@@ -48,6 +48,26 @@ export default function Login() {
       setLoading(false)
     }
   }
+  
+  const handleAnonymousLogin = async () => {
+    setLoading(true)
+    setError(null)
+
+    try {
+      const { data, error } = await supabase.auth.signInAnonymously();
+      
+      if (error) throw error;
+      
+      // 登录成功后重定向到仪表板
+      router.push('/dashboard')
+      router.refresh()
+    } catch (error: any) {
+      console.error('匿名登录错误:', error);
+      setError(error.message || '匿名登录过程中发生错误');
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center p-6">
@@ -99,6 +119,17 @@ export default function Login() {
             {loading ? '登录中...' : '登录'}
           </button>
         </form>
+        
+        <div className="mt-6 text-center">
+          <p className="text-sm text-gray-700">或者</p>
+          <button 
+            onClick={handleAnonymousLogin}
+            className="btn btn-secondary w-full mt-2"
+            disabled={loading}
+          >
+            使用匿名账号快速登录
+          </button>
+        </div>
         
         <div className="mt-4 text-center">
           <p className="text-sm text-gray-600">
