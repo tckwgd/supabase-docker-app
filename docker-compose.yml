@@ -4,16 +4,16 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        - NEXT_PUBLIC_SUPABASE_URL=http://test-supabase-7dba38-34-55-223-67.traefik.me
+        - NEXT_PUBLIC_SUPABASE_URL=http://pro-version-supabase-1936aa-129-213-192-141.traefik.me
         - NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.ewogICJyb2xlIjogImFub24iLAogICJpc3MiOiAic3VwYWJhc2UiLAogICJpYXQiOiAxNzQxNTAwMDAwLAogICJleHAiOiAxODk5MjY2NDAwCn0.muKe0Nrvkf5bMyLoFqAuFypRu3jHAcTYU08SYKrgRQo
         - SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.ewogICJyb2xlIjogInNlcnZpY2Vfcm9sZSIsCiAgImlzcyI6ICJzdXBhYmFzZSIsCiAgImlhdCI6IDE3NDE1MDAwMDAsCiAgImV4cCI6IDE4OTkyNjY0MDAKfQ.1KoSiJVueKJNkF59uc84BLqk7h8VdAoVp6Gozqr_vGc
     ports:
       - "8391:3000"
     environment:
-      - NEXT_PUBLIC_SUPABASE_URL=http://test-supabase-7dba38-34-55-223-67.traefik.me
+      - NEXT_PUBLIC_SUPABASE_URL=http://pro-version-supabase-1936aa-129-213-192-141.traefik.me
       - NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.ewogICJyb2xlIjogImFub24iLAogICJpc3MiOiAic3VwYWJhc2UiLAogICJpYXQiOiAxNzQxNTAwMDAwLAogICJleHAiOiAxODk5MjY2NDAwCn0.muKe0Nrvkf5bMyLoFqAuFypRu3jHAcTYU08SYKrgRQo
       - SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.ewogICJyb2xlIjogInNlcnZpY2Vfcm9sZSIsCiAgImlzcyI6ICJzdXBhYmFzZSIsCiAgImlhdCI6IDE3NDE1MDAwMDAsCiAgImV4cCI6IDE4OTkyNjY0MDAKfQ.1KoSiJVueKJNkF59uc84BLqk7h8VdAoVp6Gozqr_vGc
-      - JWT_SECRET=Xe31/EiRkGVzoX+7JlcD0yU6NdVVLjplrqMK78q29es=
+      - JWT_SECRET=Zp+MpJptTk1gpzNQrqFLu+MiqAFoejM2aGNNc9mvu1k=
     restart: unless-stopped
     # 使用 host 网络模式以便直接访问主机网络
     # 注意：host 网络模式只在 Linux 上可用
@@ -23,12 +23,12 @@ services:
     # 设置主机名以便于解析
     hostname: supabase-app
     # 添加额外主机条目，确保容器可以解析 Supabase 主机名
-    # 在 test-supabase-7dba38-34-55-223-67.traefik.me 前面添加多个可能的 IP 地址
+    # 在 pro-version-supabase-1936aa-129-213-192-141.traefik.me 前面添加多个可能的 IP 地址
     # 容器会尝试这些 IP 地址
     extra_hosts:
-      - "test-supabase-7dba38-34-55-223-67.traefik.me:127.0.0.1"
-      - "test-supabase-7dba38-34-55-223-67.traefik.me:129.213.192.141"
-      - "test-supabase-7dba38-34-55-223-67.traefik.me:172.17.0.1"
+      - "pro-version-supabase-1936aa-129-213-192-141.traefik.me:127.0.0.1"
+      - "pro-version-supabase-1936aa-129-213-192-141.traefik.me:129.213.192.141"
+      - "pro-version-supabase-1936aa-129-213-192-141.traefik.me:172.17.0.1"
       - "kong:129.213.192.141"
     # 添加健康检查
     healthcheck:
