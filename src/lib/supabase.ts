@@ -7,17 +7,19 @@ const SUPABASE_SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.ewogICJyb2xlI
 
 // 创建客户端
 export const createSupabaseClient = () => {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || SUPABASE_URL
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || SUPABASE_ANON_KEY
+  // 使用环境变量或默认值
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || SUPABASE_ANON_KEY;
   
-  console.log('创建 Supabase 客户端，URL:', supabaseUrl)
+  console.log('创建 Supabase 客户端，URL:', supabaseUrl);
   
-  // 创建无 JWT 验证的客户端
+  // 创建客户端
   return createClient(supabaseUrl, supabaseKey, {
     auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-      detectSessionInUrl: false
+      persistSession: true, // 持久化会话
+      autoRefreshToken: true, // 自动刷新token
+      detectSessionInUrl: true, // 检测URL中的会话
+      storageKey: 'supabase.auth.token' // 明确设置存储键
     },
     db: {
       schema: 'public'
@@ -26,29 +28,35 @@ export const createSupabaseClient = () => {
       headers: {
         'X-Client-Info': 'supabase-js/2.x'
       }
+    },
+    // 添加重试策略
+    realtime: {
+      params: {
+        eventsPerSecond: 10
+      }
     }
-  })
+  });
 }
 
 // 客户端单例
-let supabase: ReturnType<typeof createSupabaseClient> | null = null
+let supabase: ReturnType<typeof createSupabaseClient> | null = null;
 
 export const getSupabase = () => {
   if (typeof window === 'undefined') {
     // 对于服务端渲染，总是创建新客户端
-    return createSupabaseClient()
+    return createSupabaseClient();
   }
   
   if (!supabase) {
-    supabase = createSupabaseClient()
+    supabase = createSupabaseClient();
   }
-  return supabase
+  return supabase;
 }
 
 // 服务端管理客户端
 export const createServiceClient = () => {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || SUPABASE_URL
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || SUPABASE_SERVICE_KEY
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || SUPABASE_URL;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || SUPABASE_SERVICE_KEY;
   
   return createClient(supabaseUrl, supabaseServiceKey, {
     auth: {
@@ -56,38 +64,38 @@ export const createServiceClient = () => {
       autoRefreshToken: false,
       detectSessionInUrl: false
     }
-  })
+  });
 }
 
 // 创建一个基本的 HTTP 客户端，无需 JWT
 export const createHttpClient = () => {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || SUPABASE_URL
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || SUPABASE_ANON_KEY
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || SUPABASE_ANON_KEY;
   
   return {
     async request(endpoint: string, options: RequestInit = {}) {
-      const url = `${supabaseUrl}${endpoint}`
+      const url = `${supabaseUrl}${endpoint}`;
       const headers = {
         'Content-Type': 'application/json',
         'apikey': supabaseKey,
         'Authorization': `Bearer ${supabaseKey}`,
         ...options.headers
-      }
+      };
       
       try {
         const response = await fetch(url, {
           ...options,
           headers
-        })
+        });
         
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`)
+          throw new Error(`HTTP error! status: ${response.status}`);
         }
         
-        return await response.json()
+        return await response.json();
       } catch (error) {
-        console.error('HTTP request failed:', error)
-        throw error
+        console.error('HTTP request failed:', error);
+        throw error;
       }
     },
     
@@ -95,14 +103,14 @@ export const createHttpClient = () => {
       return this.request('/auth/v1/signup', {
         method: 'POST',
         body: JSON.stringify({ email, password })
-      })
+      });
     },
     
     async login(email: string, password: string) {
       return this.request('/auth/v1/token?grant_type=password', {
         method: 'POST',
         body: JSON.stringify({ email, password })
-      })
+      });
     }
-  }
+  };
 }
