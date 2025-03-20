@@ -3,10 +3,10 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
 
-const SUPABASE_URL = 'http://test-supabase-7dba38-34-55-223-67.traefik.me'
+const SUPABASE_URL = 'http://pro-version-supabase-1936aa-129-213-192-141.traefik.me:8000'
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.ewogICJyb2xlIjogImFub24iLAogICJpc3MiOiAic3VwYWJhc2UiLAogICJpYXQiOiAxNzQxNTAwMDAwLAogICJleHAiOiAxODk5MjY2NDAwCn0.muKe0Nrvkf5bMyLoFqAuFypRu3jHAcTYU08SYKrgRQo'
 const SUPABASE_SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.ewogICJyb2xlIjogInNlcnZpY2Vfcm9sZSIsCiAgImlzcyI6ICJzdXBhYmFzZSIsCiAgImlhdCI6IDE3NDE1MDAwMDAsCiAgImV4cCI6IDE4OTkyNjY0MDAKfQ.1KoSiJVueKJNkF59uc84BLqk7h8VdAoVp6Gozqr_vGc'
-const JWT_SECRET = 'Xe31/EiRkGVzoX+7JlcD0yU6NdVVLjplrqMK78q29es='
+const JWT_SECRET = 'Zp+MpJptTk1gpzNQrqFLu+MiqAFoejM2aGNNc9mvu1k='
 
 export default function DebugPage() {
   const [loading, setLoading] = useState(false)
